@@ -1,0 +1,32 @@
+buildscript {
+    ext.kotlin_version = '1.2.60'
+    ext.toolkit_version = '0.0.1'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+
+subprojects { project ->
+
+    group 'cz.muni.fi.biodivine'
+    version "$toolkit_version"
+
+    repositories {
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+    }
+
+    if (project.name.endsWith("common")) {
+        apply plugin: 'kotlin-platform-common'
+
+        dependencies {
+            compile "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
+        }
+    }
+
+}
