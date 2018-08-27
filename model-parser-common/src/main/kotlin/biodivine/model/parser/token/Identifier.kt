@@ -25,4 +25,6 @@ sealed class Identifier(override val id: String) : Rule {
     object Unspecified : Identifier(RuleId.Identifier.UNSPECIFIED)
     object Unknown : Identifier(RuleId.Identifier.UNKNOWN)
 
+    object Annotation : Identifier(RuleId.Identifier.ANNOTATION)
+
 }

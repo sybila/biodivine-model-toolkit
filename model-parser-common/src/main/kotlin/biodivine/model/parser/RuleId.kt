@@ -12,6 +12,8 @@ object RuleId {
         const val FUNCTION = "id_function"
         const val VARIABLE = "id_variable"
         const val PARAMETER = "id_parameter"
+        const val ENUM = "id_enum"
+        const val ANNOTATION = "id_annotation"
         const val E_CONSTANT = "id_constant_ext"
         const val E_FUNCTION = "id_function_ext"
         const val E_VARIABLE = "id_variable_ext"
@@ -71,6 +73,7 @@ object RuleId {
         const val ASSIGN = "misc_assign"
         const val RANGE = "misc_range"
         const val THEN = "misc_then"
+        const val DOT = "misc_dot"
     }
 
     object Keyword {
@@ -78,6 +81,11 @@ object RuleId {
         const val CONST = "keyword_const"
         const val FUN = "keyword_fun"
         const val WHEN = "keyword_when"
+        const val ENUM = "keyword_enum"
+        const val PARAM = "keyword_param"
+        const val IN = "keyword_in"
+        const val EVENT = "keyword_event"
+        const val VAR = "keyword_var"
     }
 
 }

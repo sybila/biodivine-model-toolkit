@@ -3,10 +3,7 @@ package biodivine.model.editor
 import ace.theme.Theme
 import ace.theme.register
 import biodivine.model.parser.Rule
-import biodivine.model.parser.token.Comment
-import biodivine.model.parser.token.Identifier
-import biodivine.model.parser.token.Keyword
-import biodivine.model.parser.token.Literal
+import biodivine.model.parser.token.*
 
 object DarkTheme : Theme {
 
@@ -71,12 +68,19 @@ object DarkTheme : Theme {
             color: ${Colors.keywordOrange}
         }
 
-        ${rules(Keyword.Const, Keyword.Function, Keyword.When)} {
+        ${rules(
+            Keyword.Const, Keyword.Function, Keyword.When, Keyword.Var,
+            Keyword.Param, Keyword.Enum, Keyword.In, Keyword.Event, Keyword.External
+        )} {
             color: ${Colors.keywordOrange};
         }
 
         ${rules(Identifier.Unknown)} {
             color: ${Colors.unknownRed};
+        }
+
+        ${rules(Identifier.Annotation)} {
+            color: ${Colors.annotationYellow};
         }
 
         .$name .ace_unknown {
@@ -104,6 +108,7 @@ object DarkTheme : Theme {
         const val localYellow = "#9876AA"
         const val parameterTeal = "#20999D"
         const val textGray = "#A9B7C6"
+        const val annotationYellow = "#BBB529"
         const val commentGray = "#808080"
         const val unknownRed = "#BC3F3C"
 

@@ -27,7 +27,7 @@ object Tokenizer {
     private val scanRules = listOf(
             Comment.Block.Open, Comment.Block.Close,                    // /* */
             Comment.Line.StartC, Comment.Line.StartPython,              // // #
-            Misc.Then,                                                  // ->
+            Misc.Then, Misc.Dot,                                        // -> .
             Operator.Less, Operator.LessEqual, Operator.NotEqual,       // < <= !=
             Operator.Greater, Operator.GreaterEqual, Operator.Equal,    // > >= ==
             Operator.And, Operator.Or, Operator.Not,                    // && || !
@@ -40,8 +40,8 @@ object Tokenizer {
     )
 
     private val keywords: List<ExactRule> = listOf(
-            Literal.True, Literal.False, Keyword.When,
-            Keyword.Const, Keyword.External, Keyword.Function
+            Literal.True, Literal.False, Keyword.In, Keyword.When, Keyword.Var, Keyword.Event,
+            Keyword.Const, Keyword.External, Keyword.Function, Keyword.Enum, Keyword.Param
     )
 
     fun scanToken(line: String, position: Int, state: State): Pair<Token, State> {
@@ -79,7 +79,9 @@ object Tokenizer {
 
                 // Since keywords collide with identifiers, we handle them explicitly:
                 val token: Token? = if (rawToken?.rule !is Identifier) rawToken else {
-                    keywords.find { it.value == rawToken.value }?.let { rawToken.copy(rule = it) } ?: rawToken
+                    keywords.find { it.value == rawToken.value }?.let { rawToken.copy(rule = it) } ?:
+                        makeIf(rawToken.value.startsWith('@')) { rawToken.copy(rule = Identifier.Annotation) } ?:
+                        rawToken
                 }
 
                 val nextState = when (token?.rule) {

@@ -47,6 +47,10 @@ sealed class Misc(override val id: String) : Rule {
         override val value: String = "->"
     }
 
+    object Dot : Misc(RuleId.Misc.DOT), ExactRule {
+        override val value: String = "."
+    }
+
     object Whitespace : Misc(RuleId.Misc.WHITESPACE) {
         override fun scanToken(line: String, position: Int): Token? =
                 line.scanWhile(position) { _, c -> c.isWhitespace() }?.toToken(position)
