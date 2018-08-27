@@ -1,1 +1,3 @@
 include ':model-parser-common'
+include ':model-parser-js'
+include ':model-editor-web'
