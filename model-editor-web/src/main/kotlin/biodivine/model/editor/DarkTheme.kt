@@ -97,7 +97,6 @@ object DarkTheme : Theme {
         register()
     }
 
-    /* foo */
     private fun rules(vararg rules: Rule) = rules.joinToString(separator = ", ") { ".$name .ace_${it.id}" }
 
     object Colors {

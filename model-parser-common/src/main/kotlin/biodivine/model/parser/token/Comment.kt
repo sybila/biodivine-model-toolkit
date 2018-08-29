@@ -1,46 +1,40 @@
 package biodivine.model.parser.token
 
 import biodivine.model.parser.*
+import biodivine.model.parser.RuleId.Comment as Id
 
+/** See [RuleId] and [Tokenizer] for more info about token rules. */
 sealed class Comment(override val id: String) : Rule {
 
-    sealed class Block(id: String) : Comment(id) {
+    object BlockOpen : Comment(Id.BLOCK_OPEN), ExactRule {
+        override val value: String = "/*"
+    }
 
-        object Open : Block(RuleId.Comment.Block.OPEN), ExactRule {
-            override val value: String = "/*"
-        }
+    object BlockClose : Comment(Id.BLOCK_CLOSE), ExactRule {
+        override val value: String = "*/"
+    }
 
-        object Close : Block(RuleId.Comment.Block.CLOSE), ExactRule {
-            override val value: String = "*/"
-        }
+    object StartC : Comment(Id.START_C), ExactRule {
+        override val value: String = "//"
+    }
 
-        object Value : Block(RuleId.Comment.Block.VALUE) {
+    object StartPython : Comment(Id.START_PYTHON), ExactRule {
+        override val value: String = "#"
+    }
 
-            override fun scanToken(line: String, position: Int): Token? =
-                    line.scanWhile(position) { i, _ ->
-                        Open.scanToken(line, i) == null && Close.scanToken(line, i) == null
-                    }?.toToken(position)
+    object BlockValue : Comment(Id.BLOCK_VALUE) {
 
-        }
+        override fun scanToken(line: String, position: Int): Token? =
+                line.scanWhile(position) { i, _ ->
+                    BlockOpen.scanToken(line, i) == null && BlockClose.scanToken(line, i) == null
+                }?.toToken(position)
 
     }
 
-    sealed class Line(id: String) : Comment(id) {
+    object LineValue : Comment(Id.LINE_VALUE) {
 
-        object StartC : Line(RuleId.Comment.Line.START_C), ExactRule {
-            override val value: String = "//"
-        }
-
-        object StartPython : Line(RuleId.Comment.Line.START_PYTHON), ExactRule {
-            override val value: String = "#"
-        }
-
-        object Value : Line(RuleId.Comment.Line.VALUE) {
-
-            override fun scanToken(line: String, position: Int): Token? =
-                    line.substring(position).takeIf { it.isNotEmpty() }?.toToken(position)
-
-        }
+        override fun scanToken(line: String, position: Int): Token? =
+                line.scanWhile(position) { _, c -> c != '\n' }?.toToken(position)
 
     }
 

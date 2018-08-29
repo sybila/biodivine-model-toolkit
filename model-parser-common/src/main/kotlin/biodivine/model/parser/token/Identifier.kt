@@ -3,7 +3,10 @@ package biodivine.model.parser.token
 import biodivine.model.parser.Rule
 import biodivine.model.parser.RuleId
 import biodivine.model.parser.Token
+import biodivine.model.parser.Tokenizer
+import biodivine.model.parser.RuleId.Identifier as Id
 
+/** See [RuleId] and [Tokenizer] for more info about token rules. */
 sealed class Identifier(override val id: String) : Rule {
     // All identifiers are parsed using the same regex. They are differentiated based on type inference
     // and cross-referencing with keywords later.
@@ -22,9 +25,17 @@ sealed class Identifier(override val id: String) : Rule {
     // However, unknown identifier is explicitly marked as missing/problematic and should be highlighted
     // as such.
 
-    object Unspecified : Identifier(RuleId.Identifier.UNSPECIFIED)
-    object Unknown : Identifier(RuleId.Identifier.UNKNOWN)
+    object Unspecified : Identifier(Id.UNSPECIFIED)
+    object Unknown : Identifier(Id.MISSING)
 
-    object Annotation : Identifier(RuleId.Identifier.ANNOTATION)
+    object Constant : Identifier(Id.CONSTANT)
+    object Function : Identifier(Id.FUNCTION)
+    object Variable : Identifier(Id.VARIABLE)
+    object Parameter : Identifier(Id.PARAMETER)
+    object Enum : Identifier(Id.ENUM)
+    object EnumValue : Identifier(Id.ENUM_VALUE)
+    object Annotation : Identifier(Id.ANNOTATION)
+    object ExternalConstant : Identifier(Id.E_CONSTANT)
+    object ExternalFunction : Identifier(Id.E_FUNCTION)
 
 }

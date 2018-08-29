@@ -1,7 +1,9 @@
 package biodivine.model.parser.token
 
 import biodivine.model.parser.*
+import biodivine.model.parser.RuleId.Literal as Id
 
+/** See [RuleId] and [Tokenizer] for more info about token rules. */
 sealed class Literal(override val id: String) : Rule {
 
     companion object {
@@ -10,26 +12,22 @@ sealed class Literal(override val id: String) : Rule {
 
     }
 
-    object Number : Literal(RuleId.Literal.NUMBER) {
+    object Number : Literal(Id.NUMBER) {
         override fun scanToken(line: String, position: Int): Token? =
                 matchRegex(line, position, NUMBER_LITERAL_REGEX)?.toToken(position)
     }
 
-    object True : Literal(RuleId.Literal.TRUE), ExactRule {
+    object True : Literal(Id.TRUE), ExactRule {
         override val value: String = "true"
     }
 
-    object False : Literal(RuleId.Literal.TRUE), ExactRule {
+    object False : Literal(Id.FALSE), ExactRule {
         override val value: String = "false"
     }
 
     sealed class Text(id: String) : Literal(id) {
 
-        object Open : Text(RuleId.Literal.Text.OPEN), ExactRule {
-            override val value: String = "\""
-        }
-
-        object Close : Text(RuleId.Literal.Text.CLOSE), ExactRule {
+        object Quote : Text(Id.Text.QUOTE), ExactRule {
             override val value: String = "\""
         }
 
@@ -45,9 +43,11 @@ sealed class Literal(override val id: String) : Rule {
         }
 
         object Value : Text(RuleId.Literal.Text.VALUE) {
+
             override fun scanToken(line: String, position: Int): Token? {
                 return line.scanWhile(position) { _, c -> c != '"' && c != '\\' }?.toToken(position)
             }
+
         }
 
     }

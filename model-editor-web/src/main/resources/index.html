@@ -120,22 +120,29 @@ fun isMore(x) = (x >= 3) > (x >= 4) // Can be interpreted as x >= 3 contains mor
 
 /*
     These operators are great for defining continuous/boolean functions, but struggle when defining more complex
-    discrete functions. To make this easier, we introduce a when operator, which allows to give multiple case
+    discrete functions. To make this easier, we introduce guarded blocks. These allow to give multiple case
     expressions, each based on a guard expression:
 
-    when {
-        guard expression -> case expression
+    {
+        | guard expression -> case expression
         ...
     }
 
-    (here, the whitespace can be arbitrary, but each guard-case pair has to be separated by a new line)
+    Here, the whitespace can be arbitrary, but each guard-case pair has to start with the case indicator ('|') and
+    be separated by the then indicator ('->').
+
+    Additionally, the first case indicator can be omitted for better readability in inline situations.
 */
 
-fun normalize(a) = when {
-    a < 3 -> 3
-    a > 6 -> 6
-    true -> a
+// Here, the first case indicator is used for symmetry.
+fun normalize(a) = {
+    | a < 3 -> 3
+    | a > 6 -> 6
+    | true -> a
 }
+
+// And here, the first case indicator is omitted for a nicer inline presentation.
+fun A_or_B(x) = { "A" -> 1 | "B" -> 0 }
 
 /*
     Note that the semantics of the when operator are also loose/undefined. So the guard expressions do not have to
@@ -220,8 +227,9 @@ event (y < 0) {
 // Sometimes, we need to use some "standard" function or constant which the targeted tool provides, but cannot be defined directly in
 // the modelling language. To this end, the format allows external declarations. The declaration provides just enough
 // information to allow basic integrity checks, but is left to the target tool to implement.
-// Currently, only external functions and constants are supported in the standard file format. In the future, this might be extended
-// to other types of declarations (which are currently available in the unverified mode).
+// Currently, only external functions and constants are supported in the standard file format. This is mainly because
+// we are not sure what parts of other declarations should be external (clearly external event is pointless, but
+// can I have an external variable with defined bounds but predefined flow - like time?).
 
 // In general, external declarations are defined the same way as classic declarations, without the actual definition:
 
