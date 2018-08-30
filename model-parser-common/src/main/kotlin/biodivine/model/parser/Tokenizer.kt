@@ -129,50 +129,19 @@ object Tokenizer {
 
         sealed class Item {
 
-            /** Tokenizer has encountered a '"' and is reading a string literal. */
             object Text : Item()
 
-            /** Tokenizer has encountered a '//' or '#' and is reading the comment value. */
             object LineComment : Item()
 
-            /** Tokenizer has encountered a '/*' and is reading up to the next '*/'. */
             object BlockComment : Item()
 
-            /**
-             * Tokenizer is in the default state with previously inferred [localTypes].
-             *  - If '#' or '//' is read, push [LineComment].
-             *  - If '/*' is read, push [BlockComment].
-             *  - If '"' is found, push [Text].
-             *  - If 'fun' is found, push [ExpectFunName].
-             *  - If 'enum' is found, push [ExpectEnumName].
-             *  - If enum id is found, push [ExpectDot].
-             *
-             *  If any declaration is found, pop all and reset [localTypes].
-             */
-             */
             data class Normal(val localTypes: Set<String> = emptySet()) : Item()
 
-            /**
-             * Tokenizer has just read the 'fun' keyword and is expecting a function name.
-             * If id is read, replace with [ExpectArgsOpen], otherwise pop.
-             * Other rules from [Normal] apply.
-             */
             object ExpectFunName : Item()
 
-            /**
-             * Tokenizer has read the 'fun' keyword and a function name and is expecting a '('.
-             * If '(' is read, replace with [ExpectArgs] (empty), otherwise pop.
-             * Other rules from [Normal] apply.
-             */
-            object ExpectArgsOpen : Item()
+            object ExpectFunArgsStart : Item()
 
-            /**
-             * Tokenizer has read "fun name(" and is currently reading the argument list.
-             * If identifier is read, add it to [localTypes].
-             * If ')' is read, pop and replace [Normal] with current [localTypes].
-             * Other rules from [Normal] apply.
-             */
-            data class ExpectArgs(val localTypes: Set<String> = emptySet()) : Item() {
+            data class ScanningFunArgs(val localTypes: Set<String> = emptySet()) : Item() {
 
                 fun append(id: String) = copy(localTypes + id)
 
@@ -192,25 +161,11 @@ object Tokenizer {
              */
             object ExpectEnumValue : Item()
 
-            /**
-             * Tokenizer has read 'enum' and is expecting an enum name.
-             * If id is read, replace with [ExpectEnumBlock], otherwise pop.
-             * Other rules from [Normal] apply.
-             */
             object ExpectEnumName : Item()
 
-            /**
-             * Tokenizer has read 'enum' and its name, now it expects a block start.
-             * If '{' is read, replace with [ExpectEnumValues], otherwise pop.
-             */
-            object ExpectEnumBlock : Item()
+            object ExpectEnumBlockStart : Item()
 
-            /**
-             * Tokenizer has read "enum name {" and is reading the names of the enum values.
-             * This is mostly info for the type inference engine. So we don't have to remember anything.
-             * Just pop if '}' is found and apply other rules from normal mode.
-             */
-            object ExpectEnumValues : Item()
+            object ScanningEnumValues : Item()
         }
 
         fun isLocalType(string: String): Boolean {
@@ -225,17 +180,17 @@ object Tokenizer {
             // The logic seems to be too complex for a simple when statement (a lot of repetition).
 
             /* When in string, nothing else matters, read until the end of string or new-line. */
-            if (top == Item.Text) {
+            if (top === Item.Text) {
                 return if (rule is Literal.Text.Quote || rule is NewLine) pop() else this
             }
 
             /* When in line comment, read until new-line. */
-            if (top == Item.LineComment) {
+            if (top === Item.LineComment) {
                 return if (rule is NewLine) pop() else this
             }
 
             /* When in block comment, you only care about open/close tokens. Not even a new-line can stop you! */
-            if (top == Item.BlockComment) {
+            if (top === Item.BlockComment) {
                 return when (rule) {
                     Comment.BlockOpen -> push(Item.BlockComment)
                     Comment.BlockClose -> pop()
@@ -243,34 +198,74 @@ object Tokenizer {
                 }
             }
 
-            return when(top) {
+            // Now, if you encounter a comment, you jump right into that mode, regardless
+            // of what other stuff you are scanning right now, because comments do not have meaning.
+            // (String can pop you out of other modes, so we will deal with them later)
 
-                Item.ExpectFunName -> when (rule) {
-                    Declaration.Function -> this
-                    is Identifier -> replace(Item.ExpectArgsOpen)
-                    else -> replace(Item.Normal())
+            if (rule === Comment.BlockOpen) {
+                return push(Item.BlockComment)
+            }
+
+            if (rule === Comment.StartC || rule === Comment.StartPython) {
+                return push(Item.LineComment)
+            }
+
+            // Now we have the comments handled and we are not inside a string (we might be starting one though).
+
+            /* If the rule is a declaration, we have to reset everything. */
+            if (rule is Declaration) {
+                val blank = State() // no local variables
+                return when (rule) {
+                    Declaration.Function -> blank.push(Item.ExpectFunName)
+                    Declaration.Enum -> blank.push(Item.ExpectEnumName)
+                    else -> blank
                 }
-                Item.ExpectArgsOpen -> when (rule) {
-                    Declaration.Function -> replace(Item.ExpectFunName)
-                    Misc.ParOpen -> replace(Item.ExpectArgs())
-                    else -> replace(Item.Normal())
-                }
-                is Item.ExpectArgs -> when (rule) {
-                    Declaration.Function -> replace(Item.ExpectFunName)
-                    Misc.ParClose -> replace(Item.Normal(top.localTypes))
+            }
+
+            inline fun replaceWhen(toReplace: Item, test: () -> Boolean): State {
+                return if (test()) replace(toReplace) else if (rule === Whitespace) this else pop()
+            }
+
+            // Here, we handle function declarations for extracting argument names:
+
+            /* If we are expecting a function name and we get it, move to a next state, otherwise abort. */
+            if (top === Item.ExpectFunName) {
+                return replaceWhen(Item.ExpectFunArgsStart) { rule is Identifier }
+            }
+
+            /* Same for '(' */
+            if (top === Item.ExpectFunArgsStart) {
+                return replaceWhen(Item.ScanningFunArgs()) { rule === Misc.ParOpen }
+            }
+
+            /* We are reading function args until the next ')' */
+            if (top is Item.ScanningFunArgs) {
+                return when(rule) {
                     is Identifier -> replace(top.append(token.value))
-                    is Declaration -> replace(Item.Normal())
-                    else -> this
-                }
-                is Item.Normal -> when (rule) {
-                    Comment.Line.StartPython, Comment.Line.StartC -> push(Item.LineComment)
-                    Comment.Block.Open -> push(Item.BlockComment)
-                    Literal.Text.Open -> push(Item.Text)
-                    Declaration.Function -> replace(Item.ExpectFunName)
-                    is Declaration -> replace(Item.Normal())
+                    Misc.ParClose -> State(listOf(Item.Normal(top.localTypes)))
                     else -> this
                 }
             }
+
+            // Here, we handle enum declarations (we don't extract anything, we just provide info for type hinter.
+
+            if (top === Item.ExpectEnumName) {
+                return replaceWhen(Item.ExpectEnumBlockStart) { rule is Identifier }
+            }
+
+            if (top === Item.ExpectEnumBlockStart) {
+                return replaceWhen(Item.ScanningEnumValues) { rule === Misc.BlockOpen }
+            }
+
+            if (top === Item.ScanningEnumValues) {
+                return when(rule) {
+                    Misc.BlockClose -> pop()
+                    else -> this
+                }
+            }
+
+            // If nothing else happened, the state did not change.
+            return this
         }
 
         private fun pop() = copy(stack = stack.dropLast(1))
