@@ -13,16 +13,10 @@ object AceTokenizer : Tokenizer<AceTokenizer.Token, TokenizerState>() {
                  override val tokens: Array<Token>
     ) : Tokenizer.Tokens<AceTokenizer.Token, TokenizerState>
 
-    private val modelTokenizer = ModelTokenizer(mapOf(
-            "temperature" to Identifier.Constant,
-            "isActive" to Identifier.Parameter,
-            "hill" to Identifier.Function,
-            "Status" to Identifier.Enum,
-            "status" to Identifier.Variable
-    ))
+    var typeHints: Map<String, Identifier> = emptyMap()
 
     override fun getLineTokens(line: String, startState: TokenizerState?): Tokens {
-        val (tokens, nextState) = modelTokenizer.scanTokens(line, startState ?: TokenizerState())
+        val (tokens, nextState) = ModelTokenizer.scanLine(line, startState ?: TokenizerState(), typeHints)
         return Tokens(nextState, tokens.map { Token(it.rule?.id ?: "unknown", it.value) }.toTypedArray())
     }
 

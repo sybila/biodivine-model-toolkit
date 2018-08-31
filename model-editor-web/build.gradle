@@ -29,3 +29,12 @@ kotlinFrontend {
         contentPath = file('build/resources/main')
     }
 }
+
+// Copy the worker bundle from worker module to content path.
+task copyWorkerBundle(type: Copy) {
+    from('../model-editor-worker/build/bundle/worker.bundle.js')
+    into('build/resources/main')
+}
+
+copyWorkerBundle.dependsOn(":model-editor-worker:build")
+run.dependsOn(copyWorkerBundle)

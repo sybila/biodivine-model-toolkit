@@ -24,17 +24,17 @@ sealed class Comment(override val id: String) : Rule {
 
     object BlockValue : Comment(Id.BLOCK_VALUE) {
 
-        override fun scanToken(line: String, position: Int): Token? =
-                line.scanWhile(position) { i, _ ->
-                    BlockOpen.scanToken(line, i) == null && BlockClose.scanToken(line, i) == null
+        override fun scanToken(text: String, position: Int): Token? =
+                text.scanWhile(position) { i, c ->
+                    BlockOpen.scanToken(text, i) == null && BlockClose.scanToken(text, i) == null && c != '\n'
                 }?.toToken(position)
 
     }
 
     object LineValue : Comment(Id.LINE_VALUE) {
 
-        override fun scanToken(line: String, position: Int): Token? =
-                line.scanWhile(position) { _, c -> c != '\n' }?.toToken(position)
+        override fun scanToken(text: String, position: Int): Token? =
+                text.scanWhile(position) { _, c -> c != '\n' }?.toToken(position)
 
     }
 

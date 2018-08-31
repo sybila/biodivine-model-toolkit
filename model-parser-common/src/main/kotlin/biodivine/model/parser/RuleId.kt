@@ -44,7 +44,7 @@ object RuleId {
         /** A parameter reference */
         const val PARAMETER = "id_parameter"
 
-        /** A funciton argument */
+        /** A function argument */
         const val ARGUMENT = "id_argument"
 
         /** An Enum reference */

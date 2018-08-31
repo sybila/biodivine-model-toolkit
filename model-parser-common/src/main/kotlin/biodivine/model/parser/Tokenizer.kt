@@ -3,8 +3,8 @@ package biodivine.model.parser
 import biodivine.model.parser.token.*
 
 /**
- * BioDivine tokenizer processes an input string into a collection of [Token]s, which then can be analysed using
- * the parser into a complete syntax tree. Additionally, if enabled, the tokenizer can provide assumed types for each
+ * BioDivine tokenizer processes an input string into a collection of [Token]s, which can then be analysed using
+ * the parser into a complete syntax tree. Additionally, the tokenizer can provide assumed types for each
  * reference (Note that these are primarily for syntax highlighting, as they don't have to be necessarily correct.
  * The parser decides the final type of each reference!).
  *
@@ -26,24 +26,24 @@ import biodivine.model.parser.token.*
  *
  * Alternatively, we could first tokenize the non-alphanumeric tokens + whitespace and then extract keywords
  * in a "second pass" which will look ahead to see if the 'const' is the end of the alphanumeric sequence, but
- * that just seemed needlessly complicated at the time.
+ * that's actually the same approach, just split into two steps.
  *
- * The format is very permissive regarding whitespace. Technically, as long as you start a declaration on a new
- * line, everything else is up to you. This means the tokenizer batches all whitespace together,
- * except for the new-lines.
+ * The format is very permissive regarding whitespace. This means the tokenizer batches all whitespace together,
+ * except for the new-lines, which can have a semantic meaning (you can't have multiple declarations on a single line).
  *
  * If you want to check out the types of tokens this tokenizer works with, have a look at the [RuleId] object.
  *
- * ### What is the interface?
+ * ### Tokenizer interface
  *
  * The tokenizer has three "levels" of operation: Either you tokenize the whole file, a line in the file or you
- * read a single token at a specified position. This allows you to tokenize an update section without recomputing
+ * read a single token at a specified position. This allows you to tokenize and update sections without recomputing
  * most of the file.
  *
- * Note that there are also special new-line tokens, which are emitted for every new line encountered. They
- * are only emitted when they are present in the string (so if you use the line mode and you supply just the one line,
- * you won't get the new-line token at the end). However, in this case, the state will still be updated as if
- * the new line was there, since the tokenizer knows this is the end of the line.
+ * Note that the line-level api and token-level api does not require a whole model string, i.e. line api stops once
+ * new-line is read and token api stops once token is read. However, if the line api reads the whole string and
+ * does not find the \n, it will automatically assume there is one and update the tokenizer state accordingly
+ * (but it will not emit the token unless it is really there). This is because most line split procedures
+ * remove the \n at the end.
  *
  * ### Tokenizer state
  *
@@ -52,11 +52,9 @@ import biodivine.model.parser.token.*
  * a keyword. To this end, the line and position levels accept the [Tokenizer.State] instance which captures
  * the last state before this position/line and return a state which is valid after scanning the position/line.
  *
- * But remember that if you tokenize the file in parts and the state for some position changes, you have to tokenize
+ * Remember that if you tokenize the file in parts and the state for some position changes, you have to tokenize
  * the rest of the file until the states match again. Imagine adding a '/*' to the beginning of the file. All
  * lines until the next '*/' need to be re-scanned.
- *
- * The tokenizer state is implemented as stack in order to support nested comments and type hints (see below).
  *
  * ### Type hints
  *
@@ -70,9 +68,7 @@ import biodivine.model.parser.token.*
  * re-scanned. But this way, we can at least limit exactly how often this happens, regardless of users behaviour.
  *
  * The type hinter is not necessarily distinct from the parser, but it should be able to extract hints even in
- * files which contain errors. The parser should be also able to recover after an error, but the recovery mechanism
- * can be, in theory, different. Also, the hinter does not really have to parse anything. In practice, we use
- * the same class, because we want the parsing errors as well as type hints.
+ * files which contain errors which parser cannot recover from.
  *
  * The biggest issue are the local function arguments, as they can shadow global definitions:
  * ```
@@ -87,7 +83,7 @@ import biodivine.model.parser.token.*
  * a line, you break all type hints on that line.). This is especially a problem if you run the tokenizer incrementally
  * only for the changed parts of the file (as most editors do).
  *
- * We solve this by including a heuristic function argument parser into the state of the tokenizer. So once the
+ * We solve this by including a heuristic function argument recognizer into the state of the tokenizer. So once the
  * tokenizer recognizes a a function declaration, it remembers all local arguments in its state until the next
  * declaration. This forces a re-scan of the function body every time the declaration changes, but that is to be
  * expected.
@@ -98,7 +94,7 @@ import biodivine.model.parser.token.*
  * ### Enum values
  *
  * Another problematic concept are enum values (i.e. Status { OK, NOK }). They need to be distinguished by
- * the tokenizer, but cannot be inferred from type hints (OK can be a parameter while Status.OK is an enum value).
+ * the tokenizer, but cannot be inferred from type hints (OK can be anything while Status.OK is an enum value).
  *
  * This boils down to two problems:
  *  - Usage site classification: Once an Enum identifier and a dot is read (based on the type hints), the next
@@ -107,15 +103,13 @@ import biodivine.model.parser.token.*
  *  all identifiers are assumed to be enum values.
  *
  */
-class Tokenizer(
-        var typeHints: Map<String, Identifier>
-) {
+object Tokenizer {
 
     /**
      * Tokenizer state is used to correctly resume scanning. It has a stack structure in order to facilitate
-     * the different tokenizer functions.
+     * different tokenizer functions.
      *
-     * The stack start with a normal state at the bottom. When encountering a string literal or a comment, an
+     * The stack starts with a normal state at the bottom. When encountering a string literal or a comment, an
      * appropriate state is pushed on top. Block comments can be pushed (and popped) several times. These
      * states completely override the state change logic, mainly because only a small subset of tokens is allowed
      * in these cases.
@@ -123,7 +117,7 @@ class Tokenizer(
      * Other pushed items act more like a "supplemental" rules, such that the rules in the normal mode still apply
      * ('//' pushes a comment, etc.), but only if the rules for the supplemental item are not met.
      *
-     * Overall, there should always be just one Normal item at the bottom of the stack!
+     * There should always be just one Normal item at the bottom of the stack!
      */
     data class State(
             val stack: List<Item> = listOf(Item.Normal())
@@ -132,32 +126,25 @@ class Tokenizer(
         sealed class Item {
 
             object Text : Item()
-
             object LineComment : Item()
-
             object BlockComment : Item()
 
             data class Normal(val arguments: Set<String> = emptySet()) : Item()
 
-            object ExpectFunName : Item()
+            object ExpectFunName : Item()           // fun ???
+            object ExpectFunArgsStart : Item()      // fun name ???
 
-            object ExpectFunArgsStart : Item()
-
+            // fun name ( ???
             data class ScanningFunArgs(val arguments: Set<String> = emptySet()) : Item() {
-
-                fun append(id: String) = copy(arguments + id)
-
+                fun append(id: String) = copy(arguments = arguments + id)
             }
 
-            object ExpectDot : Item()
+            object ExpectDot : Item()               // Enum???
+            object ExpectEnumValue : Item()         // Enum.???
 
-            object ExpectEnumValue : Item()
-
-            object ExpectEnumName : Item()
-
-            object ExpectEnumBlockStart : Item()
-
-            object ScanningEnumValues : Item()
+            object ExpectEnumName : Item()          // enum ???
+            object ExpectEnumBlockStart : Item()    // enum name ???
+            object ScanningEnumValues : Item()      // enum name { ???
         }
 
         fun isArgument(string: String): Boolean {
@@ -298,21 +285,47 @@ class Tokenizer(
 
     }
 
-    fun scanTokens(line: String, state: State): Pair<List<Token>, State> {
+    /**
+     * Scan a full model from the given [model] string.
+     */
+    fun scanModel(model: String, typeHints: Map<String, Identifier>? = null): List<Token> {
         val result = ArrayList<Token>()
         var position = 0
-        var currentState = state
-        while (position < line.length) {
-            val (token, nextState) = scanToken(line, position, currentState)
+        var currentState = State()
+        while (position < model.length) {
+            val (token, nextState) = scanToken(model, position, currentState, typeHints)
             position += token.value.length
             currentState = nextState
             result.add(token)
         }
+        return result
+    }
+
+    /**
+     * Scan a single line from the given [model] starting at the given [state].
+     *
+     * Note that the scanning automatically stops on the next new-line token, or at the end of the string.
+     *
+     * It can accept either the full model string, or a single line (with or without the \n at the end).
+     */
+    fun scanLine(model: String, state: State, typeHints: Map<String, Identifier>? = null): Pair<List<Token>, State> {
+        val result = ArrayList<Token>()
+        var position = 0
+        var currentState = state
+        while (position < model.length) {
+            val (token, nextState) = scanToken(model, position, currentState, typeHints)
+            position += token.value.length
+            currentState = nextState
+            result.add(token)
+            if (token.rule === NewLine) break
+        }
+        // If there is no new-model at the end, simulate it to update state.
         return result to if (result.lastOrNull()?.rule === NewLine) currentState else {
             currentState.updateState(Token(NewLine, "\n", -1))
         }
     }
 
+    // All basic rules (note that order matters!)
     private val scanRules = listOf(
             Whitespace, NewLine,                                        // \s \n
             Comment.BlockOpen, Comment.BlockClose,                      // /* */
@@ -331,38 +344,53 @@ class Tokenizer(
             Identifier.Unspecified                                      // abc123
     )
 
+    // Defines all token rules with clash with the Identifier. These are handled explicitly afterwards.
     private val keywords: List<ExactRule> = listOf(
             Literal.True, Literal.False, In, External, Declaration.Enum, Declaration.Function,
             Declaration.Constant, Declaration.Event, Declaration.Parameter, Declaration.Variable
     )
 
-    fun scanToken(line: String, position: Int, state: State): Pair<Token, State> {
-        if (position < 0 || position >= line.length) {
-            error("Invalid position $position in line of length ${line.length}")
+    /**
+     * Scan a single token from the given [model] string at given [position] and given [state].
+     *
+     * If no token cannot be matched, a single char token with no rule is produced.
+     */
+    fun scanToken(model: String, position: Int, state: State, typeHints: Map<String, Identifier>? = null): Pair<Token, State> {
+        if (position < 0 || position >= model.length) {
+            error("Invalid position $position in model of length ${model.length}")
         }
         val token = when (state.top) {
-            State.Item.LineComment -> (Comment.LineValue.scanToken(line, position) ?: unreachable())
+            // In line comments, we only match comment value and new line (end of comment)
+            State.Item.LineComment -> {
+                Comment.LineValue.scanToken(model, position) ?:
+                NewLine.scanToken(model, position) ?:
+                error("No other tokens supported in line comment.")
+            }
+            // In block comments, we match comment start/stop, value, new-line but nothing else.
             is State.Item.BlockComment -> {
-                Comment.BlockOpen.scanToken(line, position) ?:
-                Comment.BlockClose.scanToken(line, position) ?:
-                Comment.BlockValue.scanToken(line, position) ?:
-                unreachable()
+                Comment.BlockOpen.scanToken(model, position) ?:
+                Comment.BlockClose.scanToken(model, position) ?:
+                Comment.BlockValue.scanToken(model, position) ?:
+                NewLine.scanToken(model, position) ?:
+                error("No other tokens supported in block comment.")
             }
+            // In strings, we match quotes, escaped chars, string values and new lines (ends string).
             State.Item.Text -> {
-                Literal.Text.Quote.scanToken(line, position) ?:
-                Literal.Text.EscapeChar.scanToken(line, position) ?:
-                Literal.Text.Value.scanToken(line, position) ?:
-                unreachable()
+                Literal.Text.Quote.scanToken(model, position) ?:
+                Literal.Text.EscapeChar.scanToken(model, position) ?:
+                Literal.Text.Value.scanToken(model, position) ?:
+                NewLine.scanToken(model, position) ?:
+                error("No other tokens supported in text literal.")
             }
+            // All other states can recognize all tokens, there are just differences on identifier type hinting.
             else -> {
-                // All other states can recognize all tokens, there are just differences on identifier type hinting.
                 val token = scanRules.asSequence()
-                        .map { it.scanToken(line, position) }
+                        .map { it.scanToken(model, position) }
                         .filterNotNull().firstOrNull()
 
                 when {
                     // unknown token
-                    token == null -> Token(null, line.substring(position, position + 1), position)
+                    token == null -> Token(null, model.substring(position, position + 1), position)
                     token.rule !is Identifier -> token
                     else -> {
                         // First, handle keywords:
@@ -371,22 +399,21 @@ class Tokenizer(
                         }
                         // If the token is not a keyword, handle type hints:
                         ?: when {
+                            // Everything that start with '@' is an annotation.
                             token.value.startsWith('@') -> token.copy(rule = Identifier.Annotation)
                             // If this is "enum Foo { A, B }" or "Foo.A", mark A, B as enum values.
                             state.shouldHandleIdsAsEnumValues -> token.copy(rule = Identifier.EnumValue)
                             // If this is after "fun foo(x, y)", mark x y as function arguments.
                             state.isArgument(token.value) -> token.copy(rule = Identifier.Argument)
                             // Otherwise, use type hints.
-                            else -> token.copy(rule = typeHints[token.value] ?: Identifier.Unspecified)
+                            else -> token.copy(rule = typeHints?.get(token.value) ?: Identifier.Unspecified)
                         }
                     }
                 }
             }
         }
 
-        return (token to state.updateState(token)).also { (a, b) ->
-            println("Scanned $a from $state, new state $b")
-        }
+        return (token to state.updateState(token))
     }
 
 }

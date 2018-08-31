@@ -13,8 +13,8 @@ sealed class Literal(override val id: String) : Rule {
     }
 
     object Number : Literal(Id.NUMBER) {
-        override fun scanToken(line: String, position: Int): Token? =
-                matchRegex(line, position, NUMBER_LITERAL_REGEX)?.toToken(position)
+        override fun scanToken(text: String, position: Int): Token? =
+                matchRegex(text, position, NUMBER_LITERAL_REGEX)?.toToken(position)
     }
 
     object True : Literal(Id.TRUE), ExactRule {
@@ -33,10 +33,10 @@ sealed class Literal(override val id: String) : Rule {
 
         object EscapeChar : Text(RuleId.Literal.Text.ESCAPE_CHAR) {
 
-            override fun scanToken(line: String, position: Int): Token? {
-                // we need to be at least two characters before the end of the line and the first needs to be \
-                return makeIf(position < line.length - 1 && line[position] == '\\') {
-                    line.substring(position, position + 2).toToken(position)
+            override fun scanToken(text: String, position: Int): Token? {
+                // we need to be at least two characters before the end of the text and the first needs to be \
+                return makeIf(position < text.length - 1 && text[position] == '\\') {
+                    text.substring(position, position + 2).toToken(position)
                 }
             }
 
@@ -44,8 +44,8 @@ sealed class Literal(override val id: String) : Rule {
 
         object Value : Text(RuleId.Literal.Text.VALUE) {
 
-            override fun scanToken(line: String, position: Int): Token? {
-                return line.scanWhile(position) { _, c -> c != '"' && c != '\\' }?.toToken(position)
+            override fun scanToken(text: String, position: Int): Token? {
+                return text.scanWhile(position) { _, c -> c != '"' && c != '\\' }?.toToken(position)
             }
 
         }

@@ -1,0 +1,29 @@
+apply plugin: 'org.jetbrains.kotlin.frontend'
+apply plugin: 'kotlin2js'
+
+compileKotlin2Js {
+    kotlinOptions {
+        moduleKind = "commonjs"
+        sourceMap = true
+        sourceMapEmbedSources = "always"
+        metaInfo = true
+        outputFile = "$project.buildDir.path/js/${project.name}.js"
+        main = "call"
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-js"
+    implementation "com.github.daemontus.kotlin-ace-wrapper:kotlin-ace-worker:$ace_wrapper_version"
+    compile project(':model-parser-js')
+}
+
+kotlinFrontend {
+    npm {
+        dependency("kotlin-ace-worker", "$ace_wrapper_version")
+    }
+
+    webpackBundle {
+        bundleName = "worker"
+    }
+}

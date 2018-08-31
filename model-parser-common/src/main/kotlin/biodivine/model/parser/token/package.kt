@@ -29,8 +29,8 @@ object Whitespace : Rule {
 
     override val id: String = RuleId.WHITESPACE
 
-    override fun scanToken(line: String, position: Int): Token? =
-            line.scanWhile(position) { _, c -> c.isWhitespace() && c != '\n' }?.toToken(position)
+    override fun scanToken(text: String, position: Int): Token? =
+            text.scanWhile(position) { _, c -> c.isWhitespace() && c != '\n' }?.toToken(position)
 
 }
 

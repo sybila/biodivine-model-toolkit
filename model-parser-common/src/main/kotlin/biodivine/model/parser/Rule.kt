@@ -23,13 +23,13 @@ interface Rule {
     val id: String
 
     /**
-     * Try to scan a token defined by this rule in [line] at given [position].
+     * Try to scan a token defined by this rule in [text] at given [position].
      *
      * If the token does not match (or the position is invalid), return null.
      *
      * Note that the next scanning position can be determined by using the length of [Token.value].
      */
-    fun scanToken(line: String, position: Int): Token?
+    fun scanToken(text: String, position: Int): Token?
 
     /**
      * A helper function which bundles a string into a token object using the current rule and a given position.

@@ -14,10 +14,25 @@ sealed class Identifier(override val id: String) : Rule {
     companion object {
         // Identifiers always start with a letter and continue with an alphanumeric string or _
         val IDENTIFIER_REGEX = Regex("@?[a-zA-Z][a-zA-Z0-9_]*")
+
+        fun fromId(id: String): Identifier = when(id) {
+            Id.CONSTANT -> Constant
+            Id.FUNCTION -> Function
+            Id.VARIABLE -> Variable
+            Id.PARAMETER -> Parameter
+            Id.ARGUMENT -> Argument
+            Id.ENUM -> Enum
+            Id.ENUM_VALUE -> EnumValue
+            Id.ANNOTATION -> Annotation
+            Id.E_CONSTANT -> ExternalConstant
+            Id.E_FUNCTION -> ExternalFunction
+            Id.MISSING -> Unknown
+            else -> Unspecified
+        }
     }
 
-    override fun scanToken(line: String, position: Int): Token? =
-            matchRegex(line, position, IDENTIFIER_REGEX)?.toToken(position)
+    override fun scanToken(text: String, position: Int): Token? =
+            matchRegex(text, position, IDENTIFIER_REGEX)?.toToken(position)
 
     // There is a very important distinction between unspecified and unknown identifier.
     // Unspecified identifier has been parsed, but we were not able to determine its type/meaning.

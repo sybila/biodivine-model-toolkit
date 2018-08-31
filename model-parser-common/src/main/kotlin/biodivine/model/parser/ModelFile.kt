@@ -115,16 +115,3 @@ package biodivine.model.parser
  *  expression: a_expression | b_expression | array | string
  *
  */
-data class ModelFile(
-        val name: String,
-        val declarations: Set<Declaration>
-) {
-
-    data class Annotation(val name: String)
-
-    sealed class Declaration {
-
-
-
-    }
-}

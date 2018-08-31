@@ -10,7 +10,7 @@ interface ExactRule : Rule {
      */
     val value: String
 
-    override fun scanToken(line: String, position: Int): Token? = makeIf(line.startsWith(value, position)) {
+    override fun scanToken(text: String, position: Int): Token? = makeIf(text.startsWith(value, position)) {
         Token(this, value, position)
             }
 
