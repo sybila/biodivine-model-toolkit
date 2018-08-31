@@ -32,6 +32,7 @@ sealed class Identifier(override val id: String) : Rule {
     object Function : Identifier(Id.FUNCTION)
     object Variable : Identifier(Id.VARIABLE)
     object Parameter : Identifier(Id.PARAMETER)
+    object Argument : Identifier(Id.ARGUMENT)
     object Enum : Identifier(Id.ENUM)
     object EnumValue : Identifier(Id.ENUM_VALUE)
     object Annotation : Identifier(Id.ANNOTATION)

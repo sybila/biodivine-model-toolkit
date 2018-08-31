@@ -107,7 +107,9 @@ import biodivine.model.parser.token.*
  *  all identifiers are assumed to be enum values.
  *
  */
-object Tokenizer {
+class Tokenizer(
+        var typeHints: Map<String, Identifier>
+) {
 
     /**
      * Tokenizer state is used to correctly resume scanning. It has a stack structure in order to facilitate
@@ -135,30 +137,20 @@ object Tokenizer {
 
             object BlockComment : Item()
 
-            data class Normal(val localTypes: Set<String> = emptySet()) : Item()
+            data class Normal(val arguments: Set<String> = emptySet()) : Item()
 
             object ExpectFunName : Item()
 
             object ExpectFunArgsStart : Item()
 
-            data class ScanningFunArgs(val localTypes: Set<String> = emptySet()) : Item() {
+            data class ScanningFunArgs(val arguments: Set<String> = emptySet()) : Item() {
 
-                fun append(id: String) = copy(localTypes + id)
+                fun append(id: String) = copy(arguments + id)
 
             }
 
-            /**
-             * Tokenizer has just read an identifier of an enum type and is ready to discover a dot.
-             * If '.' is found, replace with [ExpectEnumValue], otherwise pop.
-             * Other rules from [Normal] apply.
-             */
             object ExpectDot : Item()
 
-            /**
-             * Tokenizer has just read an identifier of an enum and a dot afterwards.
-             * We don't actually do anything and always pop. This is just info for the inference engine
-             * that if it found and id, its an enum value.
-             */
             object ExpectEnumValue : Item()
 
             object ExpectEnumName : Item()
@@ -168,8 +160,8 @@ object Tokenizer {
             object ScanningEnumValues : Item()
         }
 
-        fun isLocalType(string: String): Boolean {
-            return string in (stack[0] as Item.Normal).localTypes
+        fun isArgument(string: String): Boolean {
+            return string in (stack[0] as Item.Normal).arguments || stack.last() is Item.ScanningFunArgs
         }
 
         /** Use this function to update a state object when a new token is scanned. */
@@ -212,6 +204,17 @@ object Tokenizer {
 
             // Now we have the comments handled and we are not inside a string (we might be starting one though).
 
+            /*
+                We are starting a string. If we are in some of the "expect" rules, we drop them, otherwise
+                continue what you were doing.
+             */
+            if (rule === Literal.Text.Quote) {
+                return when(top) {
+                    Item.ScanningEnumValues, is Item.Normal, is Item.ScanningFunArgs -> push(Item.Text)
+                    else -> pop().push(Item.Text)   // expectXXX rules -> expected token not found, popping and going to string.
+                }
+            }
+
             /* If the rule is a declaration, we have to reset everything. */
             if (rule is Declaration) {
                 val blank = State() // no local variables
@@ -222,8 +225,10 @@ object Tokenizer {
                 }
             }
 
+            // Helper function which replaces the top with the given item if test is satisfied on
+            // the next non-Whitespace token.
             inline fun replaceWhen(toReplace: Item, test: () -> Boolean): State {
-                return if (test()) replace(toReplace) else if (rule === Whitespace) this else pop()
+                return if (test()) replace(toReplace) else if (rule === Whitespace || rule === NewLine) this else pop()
             }
 
             // Here, we handle function declarations for extracting argument names:
@@ -242,7 +247,7 @@ object Tokenizer {
             if (top is Item.ScanningFunArgs) {
                 return when(rule) {
                     is Identifier -> replace(top.append(token.value))
-                    Misc.ParClose -> State(listOf(Item.Normal(top.localTypes)))
+                    Misc.ParClose -> State(listOf(Item.Normal(top.arguments)))
                     else -> this
                 }
             }
@@ -264,6 +269,19 @@ object Tokenizer {
                 }
             }
 
+            // Finally, handle enum values outside of declarations (relies on type hinting).
+            if (rule === Identifier.Enum && top is Item.Normal) {
+                return push(Item.ExpectDot)
+            }
+
+            if (top === Item.ExpectDot) {
+                return replaceWhen(Item.ExpectEnumValue) { rule === Misc.Dot }
+            }
+
+            if (top === Item.ExpectEnumValue) {
+                return if (rule === Whitespace || rule === NewLine) this else pop()
+            }
+
             // If nothing else happened, the state did not change.
             return this
         }
@@ -271,6 +289,12 @@ object Tokenizer {
         private fun pop() = copy(stack = stack.dropLast(1))
         private fun push(item: Item) = copy(stack = stack + item)
         private fun replace(item: Item) = pop().push(item)
+
+        val shouldHandleIdsAsEnumValues: Boolean
+            get() = stack.last().let { it === Item.ExpectEnumValue || it === Item.ScanningEnumValues }
+
+        val top: Item
+            get() = stack.last()
 
     }
 
@@ -284,83 +308,84 @@ object Tokenizer {
             currentState = nextState
             result.add(token)
         }
-        return result to currentState
+        return result to if (result.lastOrNull()?.rule === NewLine) currentState else {
+            currentState.updateState(Token(NewLine, "\n", -1))
+        }
     }
 
     private val scanRules = listOf(
-            Comment.Block.Open, Comment.Block.Close,                    // /* */
-            Comment.Line.StartC, Comment.Line.StartPython,              // // #
-            Misc.Then, Misc.Dot,                                        // -> .
-            Operator.Less, Operator.LessEqual, Operator.NotEqual,       // < <= !=
-            Operator.Greater, Operator.GreaterEqual, Operator.Equal,    // > >= ==
+            Whitespace, NewLine,                                        // \s \n
+            Comment.BlockOpen, Comment.BlockClose,                      // /* */
+            Comment.StartC, Comment.StartPython,                        // // #
+            Misc.ParOpen, Misc.ParClose,                                // ( )
+            Misc.BlockOpen, Misc.BlockClose,                            // { }
+            Misc.BracketOpen, Misc.BracketClose,                        // [ ]
+            Misc.Range, Misc.Dot, Misc.Comma, Misc.Then,                // .. . , ->
+            Operator.GreaterEqual, Operator.Greater,                    // >= >
+            Operator.LessEqual, Operator.Less,                          // <= <
+            Operator.NotEqual, Operator.Equal,                          // != ==
             Operator.And, Operator.Or, Operator.Not,                    // && || !
             Operator.Plus, Operator.Minus, Operator.Div, Operator.Mul,  // + - / *
-            Misc.ParOpen, Misc.ParClose, Misc.Comma,                    // ( ) ,
-            Misc.BlockOpen, Misc.BlockClose, Misc.Whitespace,           // { } \s
-            Misc.BracketOpen, Misc.BracketClose,                        // [ ]
-            Literal.Text.Open, Misc.Assign, Misc.Range,                 // " = ..
-            Literal.Number, Identifier.Unspecified                      // 123 ???
+            Misc.Case, Misc.Assign,                                     // | =
+            Literal.Text.Quote, Literal.Number,                         // " 123
+            Identifier.Unspecified                                      // abc123
     )
 
     private val keywords: List<ExactRule> = listOf(
-            Literal.True, Literal.False, Keyword.In, Keyword.When, Keyword.Var, Keyword.Event,
-            Keyword.Const, Keyword.External, Keyword.Function, Keyword.Enum, Keyword.Param
+            Literal.True, Literal.False, In, External, Declaration.Enum, Declaration.Function,
+            Declaration.Constant, Declaration.Event, Declaration.Parameter, Declaration.Variable
     )
 
     fun scanToken(line: String, position: Int, state: State): Pair<Token, State> {
         if (position < 0 || position >= line.length) {
             error("Invalid position $position in line of length ${line.length}")
         }
-        return when (state) {
-            State.LineComment -> (Comment.Line.Value.scanToken(line, position) ?: unreachable()) to State.Normal
-            is State.BlockComment -> {
-                Comment.Block.Open.scanToken(line, position)?.let {
-                    it to State.BlockComment(state.level + 1)
-                } ?:
-                Comment.Block.Close.scanToken(line, position)?.let {
-                    it to (if (state.level > 0) State.BlockComment(state.level - 1) else State.Normal)
-                } ?:
-                Comment.Block.Value.scanToken(line, position)?.let {
-                    it to state
-                } ?: unreachable()
+        val token = when (state.top) {
+            State.Item.LineComment -> (Comment.LineValue.scanToken(line, position) ?: unreachable())
+            is State.Item.BlockComment -> {
+                Comment.BlockOpen.scanToken(line, position) ?:
+                Comment.BlockClose.scanToken(line, position) ?:
+                Comment.BlockValue.scanToken(line, position) ?:
+                unreachable()
             }
-            State.String -> {
-                Literal.Text.Close.scanToken(line, position)?.let {
-                    it to State.Normal
-                } ?:
-                Literal.Text.EscapeChar.scanToken(line, position)?.let {
-                    it to State.String
-                } ?:
-                Literal.Text.Value.scanToken(line, position)?.let {
-                    it to State.String
-                } ?: unreachable()
+            State.Item.Text -> {
+                Literal.Text.Quote.scanToken(line, position) ?:
+                Literal.Text.EscapeChar.scanToken(line, position) ?:
+                Literal.Text.Value.scanToken(line, position) ?:
+                unreachable()
             }
-            State.Normal -> {
-                val rawToken = scanRules.asSequence()
+            else -> {
+                // All other states can recognize all tokens, there are just differences on identifier type hinting.
+                val token = scanRules.asSequence()
                         .map { it.scanToken(line, position) }
                         .filterNotNull().firstOrNull()
 
-                // Since keywords collide with identifiers, we handle them explicitly:
-                val token: Token? = if (rawToken?.rule !is Identifier) rawToken else {
-                    keywords.find { it.value == rawToken.value }?.let { rawToken.copy(rule = it) } ?:
-                        makeIf(rawToken.value.startsWith('@')) { rawToken.copy(rule = Identifier.Annotation) } ?:
-                        rawToken
-                }
-
-                val nextState = when (token?.rule) {
-                    Comment.Line.StartC, Comment.Line.StartPython -> State.LineComment
-                    Comment.Block.Open -> State.BlockComment(0)
-                    Literal.Text.Open -> State.String
-                    else -> state
-                }
-
-                if (token == null) {
+                when {
                     // unknown token
-                    Token(null, line.substring(position, position + 1), position) to state
-                } else {
-                    token to nextState
+                    token == null -> Token(null, line.substring(position, position + 1), position)
+                    token.rule !is Identifier -> token
+                    else -> {
+                        // First, handle keywords:
+                        keywords.find { it.value == token.value }?.let { keyword ->
+                            token.copy(rule = keyword)
+                        }
+                        // If the token is not a keyword, handle type hints:
+                        ?: when {
+                            token.value.startsWith('@') -> token.copy(rule = Identifier.Annotation)
+                            // If this is "enum Foo { A, B }" or "Foo.A", mark A, B as enum values.
+                            state.shouldHandleIdsAsEnumValues -> token.copy(rule = Identifier.EnumValue)
+                            // If this is after "fun foo(x, y)", mark x y as function arguments.
+                            state.isArgument(token.value) -> token.copy(rule = Identifier.Argument)
+                            // Otherwise, use type hints.
+                            else -> token.copy(rule = typeHints[token.value] ?: Identifier.Unspecified)
+                        }
+                    }
                 }
             }
+        }
+
+        return (token to state.updateState(token)).also { (a, b) ->
+            println("Scanned $a from $state, new state $b")
         }
     }
 

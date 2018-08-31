@@ -45,43 +45,74 @@ object DarkTheme : Theme {
 
         /* Token styling (based on IntelliJ IDEA) */
 
-        ${rules(
-            Comment.Line.StartC, Comment.Line.StartPython, Comment.Line.Value,
-            Comment.Block.Open, Comment.Block.Close, Comment.Block.Value
-        )} {
-            color: ${Colors.commentGray};
-        }
+        /* Comments and Strings */
 
-        ${rules(Literal.Text.Open, Literal.Text.Close, Literal.Text.Value)} {
-            color: ${Colors.stringGreen};
-        }
+            ${rules(
+                Comment.StartC, Comment.StartPython, Comment.LineValue,
+                Comment.BlockOpen, Comment.BlockClose, Comment.BlockValue
+            )} {
+                color: ${Colors.commentGray};
+            }
 
-        ${rules(Literal.Text.EscapeChar)} {
-            color: ${Colors.keywordOrange};
-        }
+            ${rules(Literal.Text.Quote, Literal.Text.Value)} {
+                color: ${Colors.stringGreen};
+            }
 
-        ${rules(Literal.Number)} {
-            color: ${Colors.numberBlue};
-        }
+            ${rules(Literal.Text.EscapeChar)} {
+                color: ${Colors.keywordOrange};
+            }
 
-        ${rules(Literal.True, Literal.False)} {
-            color: ${Colors.keywordOrange}
-        }
+        /* Literals and special chars */
 
-        ${rules(
-            Keyword.Const, Keyword.Function, Keyword.When, Keyword.Var,
-            Keyword.Param, Keyword.Enum, Keyword.In, Keyword.Event, Keyword.External
-        )} {
-            color: ${Colors.keywordOrange};
-        }
+            ${rules(Literal.Number)} {
+                color: ${Colors.numberBlue};
+            }
 
-        ${rules(Identifier.Unknown)} {
-            color: ${Colors.unknownRed};
-        }
+            ${rules(Literal.True, Literal.False, Misc.Comma)} {
+                color: ${Colors.keywordOrange}
+            }
 
-        ${rules(Identifier.Annotation)} {
-            color: ${Colors.annotationYellow};
-        }
+        /* Keywords */
+
+            ${rules(
+                Declaration.Constant, Declaration.Function, Declaration.Variable,
+                Declaration.Parameter, Declaration.Enum, Declaration.Event, In, External
+            )} {
+                color: ${Colors.keywordOrange};
+            }
+
+        /* Type-hinted identifiers */
+
+            ${rules(Identifier.Unknown)} {
+                color: ${Colors.unknownRed};
+            }
+
+            ${rules(Identifier.Annotation)} {
+                color: ${Colors.annotationYellow};
+            }
+
+            ${rules(Identifier.EnumValue)} {
+                color: ${Colors.numberBlue};
+            }
+
+            ${rules(Identifier.Function)} {
+                color: ${Colors.globalViolet};
+            }
+
+            ${rules(Identifier.Parameter)} {
+                color: ${Colors.parameterTeal};
+            }
+
+            ${rules(Identifier.Constant)} {
+                color: ${Colors.localYellow};
+                font-style: italic;
+            }
+
+            ${rules(Identifier.Variable)} {
+                color: ${Colors.localYellow};
+            }
+
+        /* Unknown tokens */
 
         .$name .ace_unknown {
             -webkit-text-decoration-line: underline;
