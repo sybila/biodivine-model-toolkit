@@ -18,7 +18,7 @@ object DarkTheme : Theme {
         /* Basic styling of editor */
 
         .$name {
-            color: #A9B7C6;
+            color: ${Colors.textGray};
             background: #2B2B2B;
         }
 
@@ -68,8 +68,12 @@ object DarkTheme : Theme {
                 color: ${Colors.numberBlue};
             }
 
-            ${rules(Literal.True, Literal.False, Misc.Comma)} {
-                color: ${Colors.keywordOrange}
+            ${rules(Literal.True, Literal.False)} {
+                color: ${Colors.numberBlue};
+            }
+
+            ${rules(Misc.Comma)} {
+                color: ${Colors.keywordOrange};
             }
 
         /* Keywords */
@@ -96,7 +100,7 @@ object DarkTheme : Theme {
             }
 
             ${rules(Identifier.Function)} {
-                color: ${Colors.globalViolet};
+                color: ${Colors.localYellow};
             }
 
             ${rules(Identifier.Parameter)} {
@@ -104,12 +108,11 @@ object DarkTheme : Theme {
             }
 
             ${rules(Identifier.Constant)} {
-                color: ${Colors.localYellow};
-                font-style: italic;
+                color: ${Colors.constOrange};
             }
 
             ${rules(Identifier.Variable)} {
-                color: ${Colors.localYellow};
+                color: ${Colors.globalViolet};
             }
 
         /* Unknown tokens */
@@ -134,10 +137,12 @@ object DarkTheme : Theme {
         const val keywordOrange = "#CC7832"
         const val stringGreen = "#6A8759"
         const val numberBlue = "#6897BB"
-        const val globalViolet = "#FFC66D"
-        const val localYellow = "#9876AA"
+        const val localYellow = "#FFC66D"
+        const val globalViolet = "#9876AA"
         const val parameterTeal = "#20999D"
         const val textGray = "#A9B7C6"
+        const val constOrange = "#A5C261"
+        //const val constOrange = "#D0D0FF"
         const val annotationYellow = "#BBB529"
         const val commentGray = "#808080"
         const val unknownRed = "#BC3F3C"

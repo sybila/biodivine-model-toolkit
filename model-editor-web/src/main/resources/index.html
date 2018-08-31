@@ -32,7 +32,8 @@
     /* This is a nested comment. */ But this is still a comment!
 */
 
-// The model itself is described using a set of declarations (the order of declarations does not matter), each separated by a new line.
+// The model itself is described using a set of declarations (the order of declarations does not matter).
+// Each declaration should start on a new line.
 
 // ========== CONSTANTS AND LITERALS ==========
 
@@ -66,7 +67,7 @@ const temperature_celsius = temperature + kelvin_to_celsius
 
 // The model format does not assume any semantic meaning to its operators. Hence it cannot enforce any form of type safety!
 // Subsequently, the following statement is completely fine from the formatting standpoint:
-const what = (TT - hello) * avogadro + [1, 5]
+const what = (Yes - hello) * avogadro + [1..5]
 
 /*
     It is up to the actual tool to interpret the model and decide what (true - "hello") means.
@@ -74,20 +75,20 @@ const what = (TT - hello) * avogadro + [1, 5]
     Suppose you wanted to implement a tool which works with numeric intervals instead of exact numbers. In such case [1..2] + [-3..4]
     might be a perfectly ok statement.
 
-    !!TODO!! However, in order to quickly verify models, you can load different validators into the editor based on the tool you are targeting.
+    However, in order to quickly verify models, you can load different validators into the editor based on the tool you are targeting.
     The validator then takes the parsed model file and outputs errors based on the actual constraints of the targeted tool.
     You can even select multiple validators at once - this can result in duplicate errors (each validator works independently), but can be very
     useful when writing models for different tools.
 
-    !!TODO!! For example, if you now enable the .bio validator, the 'what' constant becomes invalid since .bio only supports numeric constants.
+    For example, if you now enable the .bio validator, the 'what' constant becomes invalid since .bio only supports numeric constants.
 
-    If you don't know which tool you are targeting or simply writing a general model, the editor defaults to a basic "common" validator.
+    If you don't know which tool you are targeting, or simply writing a general model, the editor defaults to a basic "common" validator.
     This validator provides basic sanity checks, such as unknown identifiers, invalid usage of functions/constants
     (constants used as functions, function with incorrect arguments...), double declarations, etc.
 
     You can always turn it off and continue without any validation in case you need maximal flexibility. However, models which break
     the common validator are typically not supported by other general model analysis tools provided by BioDivine (dependency inspector,
-    latex output).
+    latex output, etc.).
 */
 
 // ========== FUNCTIONS AND EXPRESSIONS ==========
@@ -98,23 +99,23 @@ fun hill(x, k) = x / (x + k)
 const k1 = 1.28 * hill(4.3, 2)
 
 /*
-    The key element when defining functions are expressions. The model language currently supports the following operators (ordered by priority):
+    The key element when defining functions are expressions. The model language currently supports the following binary operators (ordered by priority):
         - logical or: a || b
         - logical and: a && b
-        - comparisons: a > b, a < b, a <= b, a >= b, a == b, a != b
-        - binary minus: a - b
-        - binary plus: a + b
-        - binary division: a / b
-        - binary multiplication: a * b
-        - unary not: !a
-        - unary plus: +
-        - unary minus: -a
+        - equality: a == b, a != b
+        - comparisons: a > b, a < b, a <= b, a >= b
+        - binary minus and plus: a - b, a + b
+        - binary division and multiplication: a / b, a * b
 
-    If you are not sure about operator priority, you can always enforce the correct priority using parentheses.
+    and unary not (!), plus (+) and minus (-).
+
+    All operators are assumed to be left-associative. If you are not sure about operator priority or associativity, you can
+    always enforce it using parentheses.
+
 */
 
 // Notice that due to the expressiveness of the format, you can even write many "high-level" expressions such as:
-fun between_three_and_six(a) = 3 < a < 6 // This can be interpreted as 3 < a  && a < 6
+fun between_three_and_six(a) = 3 < a < 6 // This can be interpreted as 3 < a && a < 6 (and is parsed as ((3 < a) < 6))
 fun isMore(x) = (x >= 3) > (x >= 4) // Can be interpreted as x >= 3 contains more elements than x >= 4
 // (of course, these are simply suggestions and it is up to the actual tool whether it supports such syntax)
 
@@ -128,8 +129,8 @@ fun isMore(x) = (x >= 3) > (x >= 4) // Can be interpreted as x >= 3 contains mor
         ...
     }
 
-    Here, the whitespace can be arbitrary, but each guard-case pair has to start with the case indicator ('|') and
-    be separated by the then indicator ('->').
+    Here, the whitespace can be arbitrary, but each guard-case pair has to start with the "case indicator" ('|') and
+    be separated by the "then indicator" ('->').
 
     Additionally, the first case indicator can be omitted for better readability in inline situations.
 */
@@ -177,13 +178,13 @@ param masterStatus in Status
 // using the standard dot syntax in any expression:
 
 fun isMasterOk() = masterStatus == Status.OK
-fun invertStatus(status) = when {
-    status == Status.OK -> Status.NOK
-    status == Status.NOK -> Status.OK
-    true -> status
+fun invertStatus(status) = {
+    | status == Status.OK -> Status.NOK
+    | status == Status.NOK -> Status.OK
+    | true -> status
 }
 
-// ========== VARIABLES ==========
+// ========== VARIABLES AND EVENTS ==========
 
 // Finally, the most fundamental part of a model: variables. Variables are values which change over time (interestingly time itself is
 // a variable too). However, the manner in which the variables change is the most interesting aspect.
@@ -205,7 +206,7 @@ var status in Status
 var y in ([-1..1] && y < x) = 0.2 * x - y
 
 // Finally, let's say we want to update the x variable whenever y hits it's highest possible value. To this end, we would use an event.
-// An event consits of a guard expression (in general, these are the conditions under which the event can fire) and a block
+// An event consists of a guard expression (in general, these are the conditions under which the event can fire) and a block
 // of variable updates:
 
 event (y = 1) {
@@ -218,13 +219,13 @@ event (y < 0) {
     status = Status.NOK
 }
 
-// Note that the top level parenthesis around the guard condition are mandatory, but can be ommitted if there is no condition.
+// Note that the top level parenthesis around the guard condition are mandatory, but can be omitted if there is no condition.
 // Also note that it is again up to the tool how it interprets the guards, event priority, fairness, immediateness, delay, etc.
 // of each event.
 
 // ========== EXTERNAL DEFINITIONS ==========
 
-// Sometimes, we need to use some "standard" function or constant which the targeted tool provides, but cannot be defined directly in
+// Sometimes, we need to use a "standard" function or constant which the targeted tool provides, but cannot be defined directly in
 // the modelling language. To this end, the format allows external declarations. The declaration provides just enough
 // information to allow basic integrity checks, but is left to the target tool to implement.
 // Currently, only external functions and constants are supported in the standard file format. This is mainly because
@@ -240,10 +241,10 @@ external fun pow(base, exponent)
 
 // While the language is heavily extensible, in some cases, what you really need is to append additional data to the model without
 // modifying its semantics. To this end, annotations are provided. Annotation is simply a named "data bundle" attached to the
-// declaration. The data bundle consists of a list of (optionally) named arguments. This data can be then used in other pre- and
+// declaration. The data bundle consists of a list of arguments. This data can be then used in other pre- and
 // post-processing tools.
 
-// One nice use case is providing "renderable" names, so that the model can be automatically translated for example to LaTeX,
+// One nice use case is providing names for rendering, so that the model can be automatically translated for example to LaTeX,
 // which greatly simplifies its inclusion into papers, websites or presentations.
 
 @LaTeX("k_1")
@@ -253,11 +254,12 @@ const k1 = -2.1
 // approximated by ramp functions and the annotations give the arguments for the approximation procedure:
 
 @Thresholds(0.1, 0.3, 0.7, 0.8)
-@Ramp(samplePoints = 10000, ramps = 20)
+@SamplePoints(10000) @Ramps(20)
 var z in [0..1] = k1 * z - pow(z, -z)
 
 // Of course, the semantics and expected format of each annotation is again tool specific. However, the presence and form of annotations
 // can be also checked by a custom validator.
+
 
 
 

@@ -45,7 +45,7 @@ sealed class Literal(override val id: String) : Rule {
         object Value : Text(RuleId.Literal.Text.VALUE) {
 
             override fun scanToken(text: String, position: Int): Token? {
-                return text.scanWhile(position) { _, c -> c != '"' && c != '\\' }?.toToken(position)
+                return text.scanWhile(position) { _, c -> c != '"' && c != '\\' && c != '\n' }?.toToken(position)
             }
 
         }

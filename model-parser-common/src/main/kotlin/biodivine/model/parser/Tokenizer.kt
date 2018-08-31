@@ -214,9 +214,10 @@ object Tokenizer {
 
             // Helper function which replaces the top with the given item if test is satisfied on
             // the next non-Whitespace token.
-            inline fun replaceWhen(toReplace: Item, test: () -> Boolean): State {
+            fun replaceWhen(toReplace: Item, test: () -> Boolean): State {
                 return if (test()) replace(toReplace) else if (rule === Whitespace || rule === NewLine) this else pop()
             }
+            // (this should be inline, but it's not supported on JVM yet)
 
             // Here, we handle function declarations for extracting argument names:
 
