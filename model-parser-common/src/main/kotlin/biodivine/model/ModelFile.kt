@@ -1,4 +1,4 @@
-package biodivine.model.parser
+package biodivine.model
 
 /**
  * Model file contains all data extracted from a single `.model` file, including all metadata necessary

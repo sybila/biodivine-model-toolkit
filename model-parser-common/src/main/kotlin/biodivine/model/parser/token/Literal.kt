@@ -8,7 +8,7 @@ sealed class Literal(override val id: String) : Rule {
 
     companion object {
         // Number literal can be any number with optional decimal places and scientific notation (1.56e-32)
-        val NUMBER_LITERAL_REGEX = Regex("\\d+(?:\\.\\d+)?(?:[eE]-?\\d+)?")
+        val NUMBER_LITERAL_REGEX = Regex("-?\\d+(?:\\.\\d+)?(?:[eE]-?\\d+)?")
 
     }
 

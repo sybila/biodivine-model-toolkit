@@ -130,16 +130,17 @@ fun isMore(x) = (x >= 3) > (x >= 4) // Can be interpreted as x >= 3 contains mor
     }
 
     Here, the whitespace can be arbitrary, but each guard-case pair has to start with the "case indicator" ('|') and
-    be separated by the "then indicator" ('->').
+    be separated by the "then indicator" ('->'). The guard expression is also optional.
 
     Additionally, the first case indicator can be omitted for better readability in inline situations.
 */
 
-// Here, the first case indicator is used for symmetry.
+// Here, the first case indicator is used for symmetry and the last guard expression is omitted to indicate that
+// a is the default value:
 fun normalize(a) = {
     | a < 3 -> 3
     | a > 6 -> 6
-    | true -> a
+    |-> a
 }
 
 // And here, the first case indicator is omitted for a nicer inline presentation.

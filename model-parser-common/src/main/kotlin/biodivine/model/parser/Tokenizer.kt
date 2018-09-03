@@ -331,6 +331,7 @@ object Tokenizer {
             Whitespace, NewLine,                                        // \s \n
             Comment.BlockOpen, Comment.BlockClose,                      // /* */
             Comment.StartC, Comment.StartPython,                        // // #
+            Literal.Number,                                             // (-)123
             Misc.ParOpen, Misc.ParClose,                                // ( )
             Misc.BlockOpen, Misc.BlockClose,                            // { }
             Misc.BracketOpen, Misc.BracketClose,                        // [ ]
@@ -340,8 +341,7 @@ object Tokenizer {
             Operator.NotEqual, Operator.Equal,                          // != ==
             Operator.And, Operator.Or, Operator.Not,                    // && || !
             Operator.Plus, Operator.Minus, Operator.Div, Operator.Mul,  // + - / *
-            Misc.Case, Misc.Assign,                                     // | =
-            Literal.Text.Quote, Literal.Number,                         // " 123
+            Misc.Case, Misc.Assign, Literal.Text.Quote,                 // | = "
             Identifier.Unspecified                                      // abc123
     )
 
